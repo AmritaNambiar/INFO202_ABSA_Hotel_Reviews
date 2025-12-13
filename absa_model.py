@@ -13,7 +13,7 @@ id2label = {0: "negative", 1: "neutral", 2: "positive"}
 
 # 2. Load Model & Tokenizer (Cached for speed)
 # We use a global variable or a function to load it once, not every click.
-model_path = "hotel_absa_model"  # This folder must exist in your repo
+model_path = "Amrita28/my-hotel-absa-v1"  # This folder must exist in your repo
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 try:
