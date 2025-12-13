@@ -1,53 +1,114 @@
 import streamlit as st
-from openai import OpenAI
+import pandas as pd
+from absa_model import predict_aspect_sentiments
 
-# Show title and description.
-st.title("📄 Document question answering")
-st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+st.set_page_config(
+    page_title="Hotel Aspect-Based Sentiment Explorer",
+    page_icon="🏨",
+    layout="wide",
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+st.title("🏨 Hotel Aspect-Based Sentiment Explorer")
+st.caption(
+    "Drop a hotel review or upload a CSV and see aspect-level sentiment for "
+    "Location, Room, Cleanliness, Service, Facilities, Food & Beverage, Price, and Safety."
+)
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+tab_single, tab_batch = st.tabs(["Single review", "Batch CSV analysis"])
 
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
-    )
+# --- Single review ---
+with tab_single:
+    st.subheader("Single review analysis")
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+    col1, col2 = st.columns([2, 1])
 
-    if uploaded_file and question:
-
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
-
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
+    with col1:
+        default_text = (
+            "Drop a hotel review here!"
+        )
+        review = st.text_area(
+            "Hotel review text",
+            value=default_text,
+            height=220,
         )
 
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+    with col2:
+        priorities = st.multiselect(
+            "Aspects you care about most",
+            options=[
+                "Cleanliness",
+                "Facilities",
+                "Food & beverage",
+                "Location",
+                "Price",
+                "Room",
+                "Safety",
+                "Service"
+            ]
+        )
+
+    if st.button("Analyze review", type="primary"):
+        if not review.strip():
+            st.warning("Please paste a review first.")
+        else:
+            with st.spinner("Running aspect-based sentiment analysis..."):
+                results = predict_aspect_sentiments(review)
+
+            # Show results
+            st.subheader("Aspect breakdown")
+            rows = []
+            for aspect, (label, conf) in results.items():
+                rows.append(
+                    {
+                        "Aspect": aspect,
+                        "Sentiment": label,
+                        "Confidence": round(conf, 2),
+                    }
+                )
+            df_out = pd.DataFrame(rows)
+            st.table(df_out)
+
+# --- Batch CSV mode ---
+with tab_batch:
+    st.subheader("Batch CSV analysis")
+    st.write("Upload a CSV with a `review_text` column to analyze multiple reviews.")
+
+    uploaded = st.file_uploader("Upload CSV", type=["csv"])
+
+    if uploaded is not None:
+        df = pd.read_csv(uploaded)
+        if "review_text" not in df.columns:
+            st.error("CSV must contain a `review_text` column.")
+        else:
+            st.success(f"Loaded {len(df)} reviews.")
+            max_n = st.number_input(
+                "Max reviews to analyze",
+                min_value=1,
+                max_value=len(df),
+                value=min(50, len(df)),
+            )
+
+            if st.button("Run batch ABSA", type="primary"):
+                subset = df.head(int(max_n)).copy()
+
+                batch_rows = []
+                with st.spinner("Analyzing reviews..."):
+                    for i, row in subset.iterrows():
+                        text = str(row["review_text"])
+                        res = predict_aspect_sentiments(text)
+                        flat = {"row_index": i, "review_text": text}
+                        for aspect, (label, conf) in res.items():
+                            flat[f"{aspect}_sentiment"] = label
+                            flat[f"{aspect}_conf"] = round(conf, 2)
+                        batch_rows.append(flat)
+
+                df_res = pd.DataFrame(batch_rows)
+                st.dataframe(df_res, use_container_width=True)
+
+                csv_bytes = df_res.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download results CSV",
+                    data=csv_bytes,
+                    file_name="absa_hotel_results.csv",
+                    mime="text/csv",
+                )
