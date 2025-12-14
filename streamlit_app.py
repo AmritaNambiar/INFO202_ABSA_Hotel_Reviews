@@ -32,21 +32,6 @@ with tab_single:
             height=220,
         )
 
-    with col2:
-        priorities = st.multiselect(
-            "Aspects you care about most",
-            options=[
-                "Cleanliness",
-                "Facilities",
-                "Food & beverage",
-                "Location",
-                "Price",
-                "Room",
-                "Safety",
-                "Service"
-            ]
-        )
-
     if st.button("Analyze review", type="primary"):
         if not review.strip():
             st.warning("Please paste a review first.")
