@@ -1,19 +1,3 @@
-# 📄 Document question answering template
+Aspect-based sentiment analysis for hotel reviews using BERT sentence-pair models. Trains on annotated aspects (Location, Room, Cleanliness, Service, Facilities, Food & Beverage, Price, Safety) and serves a Streamlit app that highlights per-aspect pros and cons to support transparent hotel decision-making.
 
-A simple Streamlit app that answers questions about an uploaded document via OpenAI's GPT-3.5.
-
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://document-question-answering-template.streamlit.app/)
-
-### How to run it on your own machine
-
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+Final Implementation: https://amrita-absa-hotel-reviews.streamlit.app/
